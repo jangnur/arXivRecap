@@ -47,9 +47,15 @@ const parseApiResponseBody = function (body) {
   });
 }
 
+let seenMessages = new Set();
 
 // Trigger the bot every time an arxiv link is posted
 app.event('link_shared', ({ event, say }) => {
+  
+  console.log("LINK SHARED");
+  console.log(event);
+  if (seenRecently(event.message_ts)) return
+  
   if (event.links[0].domain == 'arxiv.org') {
     const url = new URL(event.links[0].url);
     const arxivID = url.pathname.substring(5);
@@ -61,11 +67,25 @@ app.event('link_shared', ({ event, say }) => {
       say(title + '\n' + authors + '\n' + abstract + '\n' + paperUrl);
       });
       }
+  let timeStamp = event.message_ts;
 });
+
+function seenRecently(timeStamp) {
+  /*
+  This is to prevent issues with double posting messages when the app cold starts and slack does a retry
+  */
+  if (seenMessages.has(timeStamp)) return true;
+
+  seenMessages.add(timeStamp);
+  // Remove timestamp from set in 5 minutes
+  setTimeout(() => seenMessages.delete(timeStamp), 5000 * 60);
+  return false;
+}
+
+
 
 
 (async () => {
   await app.start(process.env.PORT || 3000); // Launch the bot
   console.log("⚡️ Bolt app is running!");
 })();
-
